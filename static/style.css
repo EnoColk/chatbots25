@@ -1,0 +1,180 @@
+/* Grundlayout */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f4f8fc;
+}
+
+.wrapper {
+  display: flex;
+  height: 100vh;
+}
+
+/* Linke Seite (Chatbereich) */
+.chat-section {
+  flex: 1;
+  padding: 20px;
+  background: #c9dff0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  border-radius: 0 18px 18px 0;
+  margin-right: -10px;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  z-index: 2;
+  position: relative;
+}
+
+.bot-header {
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
+.chat-box {
+  flex: 1;
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+  overflow-y: auto;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* Nachrichten im Chat */
+.message {
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  max-width: 80%;
+  font-size: 14px;
+}
+
+.message.bot {
+  background: #dbeaf7;
+  align-self: flex-start;
+}
+
+/* Eingabeformular unten links */
+.chat-input {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.chat-input input[type="text"] {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 25px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  outline: none;
+}
+
+.chat-input button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 25px;
+  background-color: #0066cc;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chat-input button:hover {
+  background-color: #004f9e;
+}
+
+/* Rechte Seite (PDF-Vorschau) */
+.form-section {
+  flex: 1;
+  padding: 20px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  border-radius: 0;
+  z-index: 1;
+  position: relative;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.form-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+/* Buttons oben rechts */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.circle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  color: white;
+  background: #0066cc;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.circle-button i {
+  font-size: 16px;
+}
+
+.circle-button:hover {
+  background: #004f9e;
+}
+
+.circle-button input[type="file"] {
+  display: none;
+}
+
+/* PDF-Vorschau */
+.pdf-viewer-box {
+  background: white;
+  border-radius: 12px;
+  flex: 1;
+  overflow: hidden;
+  margin-top: 10px;
+  margin-left: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.pdf-viewer-box iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Formularfelder-Anzeige */
+.form-fields-box {
+  margin-top: 20px;
+  background: #f7f9fc;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}

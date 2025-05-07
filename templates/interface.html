@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>FormFillBot</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <div class="wrapper">
+
+    <!-- Linke Seite (Chat) -->
+    <div class="chat-section">
+      <div class="bot-header">
+        <i class="fas fa-robot"></i>
+        <span>FormFillBot</span>
+      </div>
+
+      <div class="chat-box">
+        <div class="message bot">Hallo! Ich helfe dir dabei, dein Formular auszufüllen.</div>
+        <div class="message bot">Lade bitte ein PDF hoch.</div>
+      </div>
+
+      <form class="chat-input" action="#" method="post">
+        <input type="text" name="user_message" placeholder="Nachricht eingeben ..." />
+        <button type="submit">Senden</button>
+      </form>
+    </div>
+
+    <!-- Rechte Seite (PDF & Felder) -->
+    <div class="form-section">
+      <div class="form-header">
+        <h2>PDF Vorschau</h2>
+        <div class="form-actions">
+          <form action="/upload" method="post" enctype="multipart/form-data">
+            <label class="circle-button upload">
+              <input type="file" name="pdf_file" accept="application/pdf" required onchange="this.form.submit()" />
+              <i class="fas fa-upload"></i> Hochladen
+            </label>
+          </form>
+          <button class="circle-button export">
+            <i class="fas fa-download"></i> Exportieren
+          </button>
+        </div>
+      </div>
+
+      <div class="pdf-viewer-box">
+        {% if filename %}
+          <iframe src="{{ url_for('uploaded_file', filename=filename) }}" width="100%" height="100%" style="border: none;"></iframe>
+        {% else %}
+          <p>Noch keine PDF hochgeladen.</p>
+        {% endif %}
+      </div>
+
+      {% if fields %}
+        <div class="form-fields-box">
+          <h3>Erkannte Formularfelder:</h3>
+          <ul>
+            {% for key, value in fields.items() %}
+              <li><strong>{{ key }}</strong>: {{ value or "leer" }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</body>
+</html>
