@@ -54,12 +54,20 @@
 
       {% if fields %}
         <div class="form-fields-box">
-          <h3>Erkannte Formularfelder:</h3>
-          <ul>
-            {% for key, value in fields.items() %}
-              <li><strong>{{ key }}</strong>: {{ value or "leer" }}</li>
-            {% endfor %}
-          </ul>
+          {% if fields.get("Text") %}
+            <h3>Erkannter Text:</h3>
+            <p style="white-space: pre-wrap;">{{ fields["Text"] }}</p>
+          {% elif fields.get("Error") %}
+            <h3>Fehler beim Auslesen:</h3>
+            <p>{{ fields["Error"] }}</p>
+          {% else %}
+            <h3>Erkannte Formularfelder:</h3>
+            <ul>
+              {% for key, value in fields.items() %}
+                <li><strong>{{ key }}</strong>: {{ value or "leer" }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
         </div>
       {% endif %}
     </div>
