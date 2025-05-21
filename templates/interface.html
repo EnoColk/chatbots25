@@ -3,55 +3,270 @@
 <head>
   <meta charset="UTF-8">
   <title>FormFillBot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #0f0120, #1c0032);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .wrapper {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      width: 90vw;
+      height: 90vh;
+      background: transparent;
+    }
+
+    .chat-section {
+      position: relative;
+      padding: 20px;
+      width: 50%;
+      display: flex;
+      flex-direction: column;
+      background: url('/static/botchatbackground.png') no-repeat center center;
+      background-size: cover;
+      border: 3px solid #9129fc;
+      border-radius: 20px;
+      box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+    }
+
+    .chat-section::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(18, 0, 44, 0.85);
+      border-radius: 20px;
+      z-index: 0;
+    }
+
+    .chat-section > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .form-section {
+      padding: 20px;
+      width: 50%;
+      display: flex;
+      flex-direction: column;
+      background: #12002c;
+      border: 3px solid #9129fc;
+      border-radius: 20px;
+      box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+      overflow: hidden;
+    }
+
+    .bot-header {
+      display: flex;
+      align-items: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+
+    .bot-header img {
+      width: 40px;
+      height: 40px;
+      margin-right: 10px;
+      border-radius: 50%;
+    }
+
+    .chat-box {
+      flex-grow: 1;
+      overflow-y: auto;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: transparent;
+    }
+
+    .message.bot {
+      background: linear-gradient(to right, #9129fc, #f626a3);
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 12px;
+      color: #fff;
+      width: fit-content;
+    }
+
+    .chat-input {
+      display: flex;
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 20px 0 0 20px;
+      outline: none;
+    }
+
+    .chat-input button {
+      background: #2468ff;
+      border: none;
+      padding: 10px 16px;
+      color: white;
+      font-weight: bold;
+      border-radius: 0 20px 20px 0;
+      cursor: pointer;
+    }
+
+    .form-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #ff36c4;
+      margin-bottom: 10px;
+    }
+
+    .form-actions form, .form-actions button {
+      display: inline-block;
+      margin-left: 10px;
+    }
+
+    .form-actions label, .form-actions button {
+      background: linear-gradient(to right, #2468ff, #2468ff);
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .form-actions .export {
+      background: linear-gradient(to right, #f626a3, #9129fc);
+    }
+
+    .form-actions input[type="file"] {
+      display: none;
+    }
+
+    .pdf-viewer-box {
+      height: 50%;
+      min-height: 300px;
+      background: #1a0033;
+      border: 2px dashed #2468ff;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .pdf-viewer-box object {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .zoom-controls {
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .zoom-controls button {
+      background: #2468ff;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .form-fields-box {
+      flex-grow: 1;
+      overflow-y: auto;
+      background: #f5f5f5;
+      border-radius: 12px;
+      padding: 10px;
+      color: #000;
+    }
+
+    .form-fields-box h3 {
+      color: #f626a3;
+    }
+
+    .form-fields-box ul {
+      padding-left: 20px;
+    }
+
+    .form-fields-box li {
+      margin-bottom: 6px;
+    }
+
+    @media (max-width: 768px) {
+      .wrapper {
+        flex-direction: column;
+        height: auto;
+      }
+      .chat-section, .form-section {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="wrapper">
-
-    <!-- Linke Seite (Chat) -->
     <div class="chat-section">
       <div class="bot-header">
-        <i class="fas fa-robot"></i>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Bot">
         <span>FormFillBot</span>
       </div>
-
       <div class="chat-box">
         <div class="message bot">Hallo! Ich helfe dir dabei, dein Formular auszufüllen.</div>
         <div class="message bot">Lade bitte ein PDF hoch.</div>
       </div>
-
       <form class="chat-input" action="#" method="post">
         <input type="text" name="user_message" placeholder="Nachricht eingeben ..." />
         <button type="submit">Senden</button>
       </form>
     </div>
-
-    <!-- Rechte Seite (PDF & Felder) -->
     <div class="form-section">
       <div class="form-header">
         <h2>PDF Vorschau</h2>
         <div class="form-actions">
           <form action="/upload" method="post" enctype="multipart/form-data">
-            <label class="circle-button upload">
+            <label>
               <input type="file" name="pdf_file" accept="application/pdf" required onchange="this.form.submit()" />
-              <i class="fas fa-upload"></i> Hochladen
+              Hochladen
             </label>
           </form>
-          <button class="circle-button export">
-            <i class="fas fa-download"></i> Exportieren
-          </button>
+          <button class="export">Exportieren</button>
         </div>
       </div>
-
       <div class="pdf-viewer-box">
         {% if filename %}
-          <iframe src="{{ url_for('uploaded_file', filename=filename) }}" width="100%" height="100%" style="border: none;"></iframe>
+          <object id="pdf-object" data="{{ url_for('uploaded_file', filename=filename) }}" type="application/pdf">
+            <p style="color:#fff">PDF kann nicht angezeigt werden. <a href="{{ url_for('uploaded_file', filename=filename) }}" style="color:#58c7ff">Hier herunterladen</a>.</p>
+          </object>
+          <div class="zoom-controls">
+            <button onclick="zoomPdf(1.1)">+</button>
+            <button onclick="zoomPdf(0.9)">−</button>
+          </div>
         {% else %}
-          <p>Noch keine PDF hochgeladen.</p>
+          <p style="text-align:center;color:#58c7ff;padding:10px">Noch keine PDF hochgeladen.</p>
         {% endif %}
       </div>
-
       {% if fields %}
         <div class="form-fields-box">
           {% if fields.get("Text") %}
@@ -71,7 +286,16 @@
         </div>
       {% endif %}
     </div>
-
   </div>
+
+  <script>
+    let scale = 1;
+    function zoomPdf(factor) {
+      scale *= factor;
+      const obj = document.getElementById('pdf-object');
+      obj.style.transform = `scale(${scale})`;
+      obj.style.transformOrigin = 'top left';
+    }
+  </script>
 </body>
 </html>
