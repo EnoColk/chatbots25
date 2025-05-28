@@ -7,37 +7,90 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
       font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to bottom right, #0f0120, #1c0032);
+      background: linear-gradient(145deg, #2e005e, #5a0fa6, #b04bff);
       color: #fff;
+      box-sizing: border-box;
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    body {
       display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to right, #2e005e, #5a0fa6);
+      padding: 20px 40px;
+      display: flex;
+      justify-content: flex-end;
+      z-index: 9999;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    header nav a {
+      margin-left: 25px;
+      text-decoration: none;
+      color: white;
+      font-weight: 500;
+      position: relative;
+    }
+
+    header nav a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background-color: #c240ff;
+      transition: width 0.3s ease;
+    }
+
+    header nav a:hover::after {
+      width: 100%;
     }
 
     .wrapper {
+      padding-top: 100px;
+      margin: 0 auto 40px auto;
       display: flex;
       flex-direction: row;
-      gap: 20px;
-      width: 90vw;
-      height: 90vh;
-      background: transparent;
+      justify-content: space-between;
+      gap: 40px;
+      max-width: 1400px;
+      width: 95%;
+      flex-grow: 1;
+    }
+
+    .chat-section,
+    .form-section {
+      flex: 1;
+      max-width: 49%;
+      height: 720px;
+      display: flex;
+      flex-direction: column;
+      border: 3px solid #9129fc;
+      border-radius: 20px;
+      box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+      overflow: hidden;
     }
 
     .chat-section {
       position: relative;
       padding: 20px;
-      width: 50%;
-      display: flex;
-      flex-direction: column;
       background: url('/static/botchatbackground.png') no-repeat center center;
       background-size: cover;
-      border: 3px solid #9129fc;
-      border-radius: 20px;
-      box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
     }
 
     .chat-section::before {
@@ -59,14 +112,7 @@
 
     .form-section {
       padding: 20px;
-      width: 50%;
-      display: flex;
-      flex-direction: column;
       background: #12002c;
-      border: 3px solid #9129fc;
-      border-radius: 20px;
-      box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
-      overflow: hidden;
     }
 
     .bot-header {
@@ -93,7 +139,7 @@
       margin-bottom: 10px;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-start;
       background: transparent;
     }
 
@@ -103,29 +149,35 @@
       margin-bottom: 10px;
       border-radius: 12px;
       color: #fff;
-      width: fit-content;
+      max-width: 80%;
     }
 
     .chat-input {
       display: flex;
+      gap: 10px;
     }
 
     .chat-input input {
       flex: 1;
       padding: 10px;
       border: none;
-      border-radius: 20px 0 0 20px;
+      border-radius: 8px;
       outline: none;
     }
 
     .chat-input button {
-      background: #2468ff;
+      background: linear-gradient(to right, #2468ff, #2468ff);
       border: none;
       padding: 10px 16px;
       color: white;
       font-weight: bold;
-      border-radius: 0 20px 20px 0;
+      border-radius: 8px;
       cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .chat-input button:hover {
+      background: linear-gradient(to right, #1d52cc, #1d52cc);
     }
 
     .form-header {
@@ -136,12 +188,14 @@
       margin-bottom: 10px;
     }
 
-    .form-actions form, .form-actions button {
+    .form-actions form,
+    .form-actions button {
       display: inline-block;
       margin-left: 10px;
     }
 
-    .form-actions label, .form-actions button {
+    .form-actions label,
+    .form-actions button {
       background: linear-gradient(to right, #2468ff, #2468ff);
       padding: 8px 16px;
       border: none;
@@ -149,10 +203,21 @@
       color: #fff;
       cursor: pointer;
       font-weight: bold;
+      transition: background 0.3s ease;
+    }
+
+    .form-actions label:hover,
+    .form-actions button:hover {
+      background: linear-gradient(to right, #1d52cc, #1d52cc);
     }
 
     .form-actions .export {
       background: linear-gradient(to right, #f626a3, #9129fc);
+      transition: background 0.3s ease;
+    }
+
+    .form-actions .export:hover {
+      background: linear-gradient(to right, #c51b86, #6e20c2);
     }
 
     .form-actions input[type="file"] {
@@ -160,8 +225,7 @@
     }
 
     .pdf-viewer-box {
-      height: 50%;
-      min-height: 300px;
+      height: 300px;
       background: #1a0033;
       border: 2px dashed #2468ff;
       border-radius: 12px;
@@ -191,6 +255,11 @@
       border-radius: 6px;
       padding: 4px 8px;
       cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .zoom-controls button:hover {
+      background: #1d52cc;
     }
 
     .form-fields-box {
@@ -214,22 +283,35 @@
       margin-bottom: 6px;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 1024px) {
       .wrapper {
         flex-direction: column;
         height: auto;
+        padding-bottom: 40px;
       }
-      .chat-section, .form-section {
+
+      .chat-section,
+      .form-section {
         width: 100%;
+        max-width: 100%;
+        height: auto;
       }
     }
   </style>
 </head>
 <body>
+
+  <header>
+    <nav>
+      <a href="/profil">Profil</a>
+      <a href="/logout">Logout</a>
+    </nav>
+  </header>
+
   <div class="wrapper">
     <div class="chat-section">
       <div class="bot-header">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Bot">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Bot">
         <span>FormFillBot</span>
       </div>
       <div class="chat-box">

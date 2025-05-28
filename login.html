@@ -3,19 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FormFillBot</title>
+  <title>Login | FormFillBot</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
     body {
       font-family: 'Arial', sans-serif;
       background: linear-gradient(145deg, #2e005e, #5a0fa6, #b04bff);
       color: white;
+      margin: 0;
       height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
     header {
@@ -23,11 +20,15 @@
       justify-content: space-between;
       align-items: center;
       padding: 20px 40px;
-      background: transparent;
       position: absolute;
       width: 100%;
       top: 0;
       z-index: 10;
+      background: transparent;
+      max-width: 1200px;
+      margin: 0 auto;
+      left: 0;
+      right: 0;
     }
 
     .logo {
@@ -36,10 +37,16 @@
     }
 
     .logo img {
-      height: 40px;
-      width: 40px;
+      height: 32px;
+      width: 32px;
       margin-right: 10px;
       object-fit: contain;
+    }
+
+    .logo h2 {
+      font-size: 22px;
+      font-weight: 600;
+      margin: 0;
     }
 
     nav a {
@@ -65,59 +72,72 @@
       width: 100%;
     }
 
-    .hero {
+    main {
+      flex: 1;
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      padding-top: 60px;
+      padding-top: 100px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(194, 64, 255, 0.2);
+      width: 100%;
+      max-width: 400px;
       text-align: center;
     }
 
-    .hero img {
-      width: 220px;
-      max-width: 80%;
-      margin-bottom: 30px;
-      filter: drop-shadow(0 0 30px rgba(194, 64, 255, 0.4));
+    .card-title {
+      margin-bottom: 24px;
+      font-size: 28px;
     }
 
-    h1 {
-      font-size: 48px;
-      margin-bottom: 15px;
+    input {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 16px;
     }
 
-    p {
-      font-size: 20px;
-      margin-bottom: 35px;
+    input::placeholder {
       color: #ccc;
     }
 
     .btn {
-      padding: 16px 36px;
-      font-size: 18px;
+      margin-top: 20px;
+      padding: 14px 28px;
+      font-size: 16px;
       background: linear-gradient(to right, #8b3ef7, #c240ff);
       border: none;
-      border-radius: 14px;
+      border-radius: 12px;
       color: white;
       cursor: pointer;
-      transition: all 0.3s ease;
+      width: 100%;
       box-shadow: 0 0 12px rgba(194, 64, 255, 0.3);
+      transition: 0.3s ease;
     }
 
     .btn:hover {
+      box-shadow: 0 0 20px rgba(194, 64, 255, 0.6);
       transform: translateY(-2px);
-      box-shadow: 0 0 25px rgba(194, 64, 255, 0.6);
     }
 
-    @media (max-width: 600px) {
-      h1 {
-        font-size: 36px;
-      }
-      .btn {
-        font-size: 16px;
-        padding: 12px 28px;
-      }
+    .signup-hint {
+      margin-top: 20px;
+      font-size: 14px;
+    }
+
+    .signup-hint a {
+      color: #c240ff;
+      text-decoration: none;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -129,17 +149,24 @@
       <h2>FormFillBot</h2>
     </div>
     <nav>
+      <a href="main.html">Startseite</a>
       <a href="#">Über uns</a>
-      <a href="login.html">Login</a>
     </nav>
   </header>
 
-  <div class="hero">
-    <img src="static/images/logo.png" alt="FormFillBot Bot" />
-    <h1>FormFillBot</h1>
-    <p>Einfach PDF-Formulare ausfüllen</p>
-    <button class="btn" onclick="window.location.href='signup.html'">Jetzt loslegen</button>
-  </div>
+  <main>
+    <div class="card">
+      <h2 class="card-title">Login</h2>
+      <form>
+        <input type="email" placeholder="E-Mail" required />
+        <input type="password" placeholder="Passwort" required />
+        <button class="btn" type="submit">Einloggen</button>
+      </form>
+      <div class="signup-hint">
+        Noch kein Konto? <a href="signup.html">Hier registrieren</a>
+      </div>
+    </div>
+  </main>
 
 </body>
 </html>
