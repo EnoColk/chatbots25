@@ -191,12 +191,14 @@
     }
 
     .form-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: #ff36c4;
-      margin-bottom: 10px;
-    }
+  display: flex;
+  justify-content: flex-start; /* statt space-between */
+  align-items: center;
+  gap: 20px; /* Abstand zwischen Text und Buttons */
+  color: #ff36c4;
+  margin-bottom: 10px;
+}
+
 
     .form-actions form,
     .form-actions a.export {
@@ -280,6 +282,45 @@
         height: auto;
       }
     }
+
+    .remove-button {
+  background: linear-gradient(to right, #f626a3, #9129fc);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-block;
+  min-width: 130px;
+  text-align: center;
+  text-decoration: none;
+  transition: background 0.3s ease;
+}
+
+.remove-button:hover {
+  background: linear-gradient(to right, #c41d84, #6e1aa3);
+}
+
+
+.upload-button {
+  background: linear-gradient(to right, #2468ff, #2468ff);
+  color: white;
+  border: none;
+}
+
+.upload-button, .remove-button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-block;
+  min-width: 130px; /* Gleiche Mindestbreite */
+  text-align: center;
+  text-decoration: none;
+}
   </style>
 </head>
 <body>
@@ -307,17 +348,23 @@
   <div class="form-section">
     <div class="form-header">
       <h2>PDF Vorschau</h2>
-      <div class="form-actions">
-        <form action="/upload" method="post" enctype="multipart/form-data">
-          <label>
-            <input type="file" name="pdf_file" accept="application/pdf" required onchange="this.form.submit()" />
-            Hochladen
-          </label>
+      <div class="form-actions" style="display: flex; gap: 10px; align-items: center;">
+        <!-- Upload-Formular -->
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+          <label for="fileInput" class="upload-button">Datei auswählen</label>
+          <input id="fileInput" type="file" name="pdf_file" accept="application/pdf"
+                 style="display: none;" onchange="document.getElementById('uploadForm').submit()" />
         </form>
+      
+        <!-- Entfernen-Button als eigenes Formular -->
+        <form action="/remove" method="post" style="display:inline;">
+          <button type="submit" class="remove-button">Entfernen</button>
+        </form>
+      
         {% if filename %}
           <a href="/export" class="export">Exportieren</a>
         {% endif %}
-      </div>
+      </div>                  
     </div>
 
     <div class="pdf-viewer-box">
@@ -402,6 +449,29 @@
       }
     });
   });
+
+  function removeFile() {
+    const fileInput = document.getElementById("fileInput");
+
+    // Falls keine Datei ausgewählt wurde, nichts tun
+    if (!fileInput) return;
+
+    // Altes Input-Feld ersetzen
+    const newInput = document.createElement("input");
+    newInput.type = "file";
+    newInput.name = "pdf_file";
+    newInput.accept = "application/pdf";
+    newInput.id = "fileInput";
+    newInput.style.display = "none";
+
+    newInput.addEventListener("change", function () {
+      document.getElementById("uploadForm").submit();
+    });
+
+    fileInput.parentNode.replaceChild(newInput, fileInput);
+
+    console.log("Datei wurde entfernt.");
+  }
 </script>
 
 </body>

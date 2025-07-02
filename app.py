@@ -2,8 +2,8 @@ import os
 import io
 from flask import Flask, request, render_template, redirect, url_for, send_from_directory, session, jsonify
 from werkzeug.utils import secure_filename
-from PyPDF2 import PdfReader, PdfWriter
-from PyPDF2.generic import NameObject, DictionaryObject, BooleanObject
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import NameObject, DictionaryObject, BooleanObject
 from dotenv import load_dotenv
 
 # API-Key laden (falls benötigt)
@@ -19,17 +19,19 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 def extract_form_fields(pdf_path):
     reader = PdfReader(pdf_path)
     fields = {}
-    for field in reader.get_fields().values():
-        name = field.get('/T')
-        value = field.get('/V', '')
-        if name:
-            fields[name] = value or ''
+    if reader.get_fields():
+        for field in reader.get_fields().values():
+            name = field.get('/T')
+            value = field.get('/V', '')
+            if name:
+                fields[name] = value or ''
     return fields
 
 # Hauptseite
 @app.route("/", methods=["GET"])
 def index():
-    filename = session.get("filename")
+    # Nur anzeigen, wenn gerade eine neue Datei hochgeladen wurde
+    filename = session.pop("filename", None)
     return render_template("interface.html", filename=filename)
 
 # PDF-Upload
@@ -52,6 +54,14 @@ def upload_pdf():
     fields = extract_form_fields(filepath)
     session["form_fields"] = fields
 
+    return redirect(url_for("index"))
+
+# PDF entfernen (Session löschen)
+@app.route("/remove", methods=["POST"])
+def remove_pdf():
+    session.pop("filename", None)
+    session.pop("form_fields", None)
+    session.pop("field_state", None)
     return redirect(url_for("index"))
 
 # PDF-Vorschau anzeigen
@@ -103,21 +113,27 @@ def export_pdf():
     reader = PdfReader(filepath)
     writer = PdfWriter()
 
-    # Alle Seiten übernehmen und Felder aktualisieren
-    for i, page in enumerate(reader.pages):
+    # Seiten kopieren
+    for page in reader.pages:
         writer.add_page(page)
-        writer.update_page_form_field_values(writer.pages[i], answers)
 
-    # Sichtbarkeit sicherstellen
+    # AcroForm kopieren
     if "/AcroForm" in reader.trailer["/Root"]:
         writer._root_object.update({
-            NameObject("/AcroForm"): DictionaryObject({
-                NameObject("/Fields"): reader.trailer["/Root"]["/AcroForm"]["/Fields"],
-                NameObject("/NeedAppearances"): BooleanObject(True)
-            })
+            NameObject("/AcroForm"): reader.trailer["/Root"]["/AcroForm"]
         })
 
-    # Neue Datei im Speicher schreiben
+    # Formularfelder auf allen Seiten aktualisieren
+    for i in range(len(writer.pages)):
+        writer.update_page_form_field_values(writer.pages[i], answers)
+
+    # Sichtbarkeit erzwingen
+    if "/AcroForm" in writer._root_object:
+        writer._root_object["/AcroForm"].update({
+            NameObject("/NeedAppearances"): BooleanObject(True)
+        })
+
+    # Neue Datei erzeugen
     output = io.BytesIO()
     writer.write(output)
     output.seek(0)
