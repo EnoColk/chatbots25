@@ -10,25 +10,32 @@ from pypdf import PdfReader, PdfWriter
 from pypdf.generic import NameObject, DictionaryObject, BooleanObject
 from dotenv import load_dotenv
 
+# Supabase and password hashing imports
+from supabase import create_client, Client
+import bcrypt
+from datetime import datetime
+
+# Load environment variables
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 app.config["UPLOAD_FOLDER"] = "uploads"
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-USER_DATA_FILE = "user_data.json"
+# ---- User Auth: Supabase DB ----
 
-def load_user_data():
-    if os.path.exists(USER_DATA_FILE):
-        with open(USER_DATA_FILE, "r") as f:
-            return json.load(f)
-    return {}
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-def save_user_data(data):
-    with open(USER_DATA_FILE, "w") as f:
-        json.dump(data, f)
+def verify_password(password, hashed):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+# ---- PDF Logic (same as before) ----
 
 def extract_form_fields(pdf_path):
     reader = PdfReader(pdf_path)
@@ -146,52 +153,187 @@ def export_pdf():
         mimetype='application/pdf'
     )
 
+# ---- Supabase Signup/Login ----
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        name = request.form.get("name", "")
+        lastname = request.form.get("lastname", "")
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        # Check if email exists
+        result = supabase.table("signup").select("id").eq("email", email).execute()
+        if result.data:
+            flash("E-Mail existiert bereits!")
+            return redirect(url_for("signup"))
+
+        hashed_password = hash_password(password)
+        # Insert into signup table
+        supabase.table("signup").insert({
+            "name": name,
+            "lastname": lastname,
+            "email": email,
+            "password": hashed_password
+        }).execute()
+        flash("Registrierung erfolgreich! Bitte loggen Sie sich ein.")
+        return redirect(url_for("login"))
+
+    return render_template("signup.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        # Fetch user by email
+        res = supabase.table("signup").select("*").eq("email", email).execute()
+        user = res.data[0] if res.data else None
+
+        success = False
+        if user and verify_password(password, user["password"]):
+            session["user_id"] = user["id"]
+            session["user_email"] = user["email"]
+            flash("Login erfolgreich!")
+            success = True
+            redirect_url = url_for("main")
+        else:
+            flash("Login fehlgeschlagen.")
+            redirect_url = url_for("login")
+
+        # Log attempt in login table
+        supabase.table("login").insert({
+            "email": email,
+            "password": user["password"] if user else "",
+            "login_date": datetime.utcnow().isoformat(),
+            "success": success
+        }).execute()
+
+        return redirect(redirect_url)
+
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("Erfolgreich ausgeloggt.")
+    return redirect(url_for("login"))
+
+# --- Profile logic stays as before, or adapt to Supabase as needed ---
+
 @app.route("/profil", methods=["GET", "POST"])
 def profil():
-    user_email = session.get("user_email", "default@example.com")
-    all_users = load_user_data()
-    user = all_users.get(user_email, {})
+    user_email = session.get("user_email")
+    if not user_email:
+        flash("Bitte loggen Sie sich zuerst ein.")
+        return redirect(url_for("login"))
+
+    # Example: Fetch current profile from Supabase
+    res = supabase.table("signup").select("*").eq("email", user_email).execute()
+    user = res.data[0] if res.data else {}
 
     if request.method == "POST":
         name = request.form.get("name")
         email = request.form.get("email")
         nachname = request.form.get("nachname")
-        adresse = request.form.get("adresse")
-        telefon = request.form.get("telefon")
-        familienstand = request.form.get("familienstand")
-        geschlecht = request.form.get("geschlecht")
-        land = request.form.get("land")
-
-        user.update({
+        # ...other fields if you add them...
+        # Update user info in Supabase
+        supabase.table("signup").update({
             "name": name,
-            "email": email,
-            "nachname": nachname,
-            "adresse": adresse,
-            "telefon": telefon,
-            "familienstand": familienstand,
-            "geschlecht": geschlecht,
-            "land": land,
-        })
+            "lastname": nachname,
+            "email": email
+        }).eq("email", user_email).execute()
 
-        all_users[user_email] = user
-        save_user_data(all_users)
+        session["user_email"] = email  # Update session if email changed
         flash("Profil erfolgreich aktualisiert!")
-
         return redirect(url_for("profil"))
 
     return render_template("profil.html", user=user)
 
 @app.route('/main')
 def main():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
     return render_template('main.html')
 
 @app.route('/interface')
 def interface():
     return render_template('interface.html')
 
-@app.route('/landing')
-def landing():
-    return render_template('landing.html')
-
 if __name__ == "__main__":
     app.run(debug=True)
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        lastname = request.form.get("lastname", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        # Validate input
+        if not name or not lastname or not email or not password:
+            flash("Bitte alle Felder ausfüllen.")
+            return redirect(url_for("signup"))
+
+        # Check if email already exists
+        result = supabase.table("signup").select("id").eq("email", email).execute()
+        if result.data:
+            flash("E-Mail existiert bereits!")
+            return redirect(url_for("signup"))
+
+        # Hash the password
+        hashed_password = hash_password(password)
+
+        # Insert into signup table
+        supabase.table("signup").insert({
+            "name": name,
+            "lastname": lastname,
+            "email": email,
+            "password": hashed_password
+        }).execute()
+
+        flash("Registrierung erfolgreich! Bitte loggen Sie sich ein.")
+        return redirect(url_for("login"))
+
+    # GET: Render the signup form
+    return render_template("signup.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        # Fetch user by email
+        res = supabase.table("signup").select("*").eq("email", email).execute()
+        user = res.data[0] if res.data else None
+
+        success = False
+        if user and verify_password(password, user["password"]):
+            # Correct password
+            session["user_id"] = user["id"]
+            session["user_email"] = user["email"]
+            flash("Login erfolgreich!")
+            success = True
+            redirect_url = url_for("main")
+        else:
+            # Wrong credentials
+            flash("E-Mail oder Passwort falsch.")
+            redirect_url = url_for("login")
+
+        # Log every attempt (success/fail)
+        supabase.table("login").insert({
+            "email": email,
+            "password": user["password"] if user else "",
+            "login_date": datetime.utcnow().isoformat(),
+            "success": success
+        }).execute()
+
+        return redirect(redirect_url)
+
+    # GET: Render the login form
+    return render_template("login.html")
+
