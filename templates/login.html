@@ -14,7 +14,6 @@
       display: flex;
       flex-direction: column;
     }
-
     header {
       display: flex;
       justify-content: space-between;
@@ -30,25 +29,21 @@
       left: 0;
       right: 0;
     }
-
     .logo {
       display: flex;
       align-items: center;
     }
-
     .logo img {
       height: 32px;
       width: 32px;
       margin-right: 10px;
       object-fit: contain;
     }
-
     .logo h2 {
       font-size: 22px;
       font-weight: 600;
       margin: 0;
     }
-
     nav a {
       margin-left: 25px;
       text-decoration: none;
@@ -56,7 +51,6 @@
       font-weight: 500;
       position: relative;
     }
-
     nav a::after {
       content: '';
       position: absolute;
@@ -67,11 +61,9 @@
       background-color: #c240ff;
       transition: width 0.3s ease;
     }
-
     nav a:hover::after {
       width: 100%;
     }
-
     main {
       flex: 1;
       display: flex;
@@ -79,7 +71,6 @@
       align-items: center;
       padding-top: 100px;
     }
-
     .card {
       background: rgba(255, 255, 255, 0.05);
       padding: 40px;
@@ -89,12 +80,10 @@
       max-width: 400px;
       text-align: center;
     }
-
     .card-title {
       margin-bottom: 24px;
       font-size: 28px;
     }
-
     input {
       width: 100%;
       padding: 14px;
@@ -105,11 +94,9 @@
       color: white;
       font-size: 16px;
     }
-
     input::placeholder {
       color: #ccc;
     }
-
     .btn {
       margin-top: 20px;
       padding: 14px 28px;
@@ -123,21 +110,29 @@
       box-shadow: 0 0 12px rgba(194, 64, 255, 0.3);
       transition: 0.3s ease;
     }
-
     .btn:hover {
       box-shadow: 0 0 20px rgba(194, 64, 255, 0.6);
       transform: translateY(-2px);
     }
-
     .signup-hint {
       margin-top: 20px;
       font-size: 14px;
     }
-
     .signup-hint a {
       color: #c240ff;
       text-decoration: none;
       font-weight: bold;
+    }
+    /* Flash messages styling */
+    .flashes {
+      margin-bottom: 20px;
+      padding: 12px 18px;
+      background: rgba(255,50,120,0.15);
+      color: #ff70c0;
+      border-left: 5px solid #ff70c0;
+      border-radius: 8px;
+      font-size: 16px;
+      text-align: left;
     }
   </style>
 </head>
@@ -157,13 +152,23 @@
   <main>
     <div class="card">
       <h2 class="card-title">Login</h2>
-      <form>
-        <input type="email" placeholder="E-Mail" required />
-        <input type="password" placeholder="Passwort" required />
+      <!-- Flask flash message display -->
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="flashes">
+            {% for message in messages %}
+              {{ message }}<br>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      <form method="post" action="/login">
+        <input type="email" name="email" placeholder="E-Mail" required autocomplete="email" />
+        <input type="password" name="password" placeholder="Passwort" required autocomplete="current-password" />
         <button class="btn" type="submit">Einloggen</button>
       </form>
       <div class="signup-hint">
-        Noch kein Konto? <a href="signup.html">Hier registrieren</a>
+        Noch kein Konto? <a href="/signup">Hier registrieren</a>
       </div>
     </div>
   </main>
