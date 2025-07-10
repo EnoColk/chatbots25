@@ -1,308 +1,140 @@
 <!DOCTYPE html>
 <html lang="de">
-  <head>
-    <meta charset="UTF-8">
-    <title>FormFillBot</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Externes Stylesheet -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  
-    <!-- PDF.js von CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
-  
-    <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        font-family: 'Segoe UI', sans-serif;
-        background: linear-gradient(145deg, #2e005e, #5a0fa6, #b04bff);
-        color: #fff;
-        box-sizing: border-box;
-        height: 100%;
-        overflow-x: hidden;
-        overflow-y: auto;
-      }
-  
-      body {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-      }
-  
-      header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(to right, #2e005e, #5a0fa6);
-        padding: 20px 40px;
-        display: flex;
-        justify-content: flex-end;
-        z-index: 9999;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      }
-  
-      header nav a {
-        margin-left: 25px;
-        text-decoration: none;
-        color: white;
-        font-weight: 500;
-        position: relative;
-      }
-  
-      header nav a::after {
-        content: '';
-        position: absolute;
-        bottom: -4px;
-        left: 0;
-        width: 0;
-        height: 2px;
-        background-color: #c240ff;
-        transition: width 0.3s ease;
-      }
-  
-      header nav a:hover::after {
-        width: 100%;
-      }
-  
-      .wrapper {
-        padding-top: 100px;
-        margin: 0 auto 40px auto;
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        gap: 40px;
-        max-width: 1400px;
-        width: 95%;
-        flex-grow: 1;
-      }
-  
-      .chat-section,
-      .form-section {
-        flex: 1;
-        max-width: 49%;
-        height: 720px;
-        display: flex;
-        flex-direction: column;
-        border: 3px solid #9129fc;
-        border-radius: 20px;
-        box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
-        overflow: hidden;
-      }
-  
-      .chat-section {
-        position: relative;
-        padding: 20px;
-        background: url('/static/botchatbackground.png') no-repeat center center;
-        background-size: cover;
-      }
-  
-      .chat-section::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(18, 0, 44, 0.85);
-        border-radius: 20px;
-        z-index: 0;
-      }
-  
-      .chat-section > * {
-        position: relative;
-        z-index: 1;
-      }
-  
-      .form-section {
-        padding: 20px;
-        background: #12002c;
-      }
-  
-      .bot-header {
-        display: flex;
-        align-items: center;
-        font-size: 24px;
-        font-weight: bold;
-        color: #fff;
-        margin-bottom: 20px;
-      }
-  
-      .bot-header img {
-        width: 40px;
-        height: 40px;
-        margin-right: 10px;
-        border-radius: 50%;
-      }
-  
-      .chat-box {
-        flex-grow: 1;
-        overflow-y: auto;
-        border-radius: 12px;
-        padding: 10px;
-        margin-bottom: 10px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        background: transparent;
-      }
-  
-      .message.bot {
-        background: linear-gradient(to right, #9129fc, #f626a3);
-        padding: 12px;
-        margin-bottom: 10px;
-        border-radius: 12px;
-        color: #fff;
-        max-width: 80%;
-      }
-  
-      .message.user {
-        background: #1a1a1a;
-        padding: 12px;
-        margin-bottom: 10px;
-        border-radius: 12px;
-        color: #fff;
-        align-self: flex-end;
-        max-width: 80%;
-      }
-  
-      .chat-input {
-        display: flex;
-        gap: 10px;
-      }
-  
-      .chat-input input {
-        flex: 1;
-        padding: 10px;
-        border: none;
-        border-radius: 8px;
-        outline: none;
-      }
-  
-      .chat-input button {
-        background-color: #2468ff;
-        border: none;
-        padding: 10px 16px;
-        color: white;
-        font-weight: bold;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
-  
-      .chat-input button:hover {
-        background-color: #1d52cc;
-      }
-  
-      .form-header {
-        display: flex;
-        justify-content: flex-start;
-        align-items: center;
-        gap: 20px;
-        color: #ffffff;
-        margin-bottom: 10px;
-      }
-  
-      .form-actions {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-  
-      .form-actions form,
-      .form-actions a.export {
-        display: inline-block;
-      }
-  
-      .button-style {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 130px;
-        height: 42px;
-        padding: 0 16px;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
-        font-size: 14px;
-        text-align: center;
-        text-decoration: none;
-        color: white;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
-  
-      .upload-button { background-color: #2468ff; }
-      .upload-button:hover { background-color: #1d52cc; }
-      .remove-button { background-color: #d11a2a; }
-      .remove-button:hover { background-color: #a50e1d; }
-      .export { background-color: #8c2eff; }
-      .export:hover { background-color: #6b1edb; }
-  
-      .pdf-viewer-box {
-        height: 300px;
-        background: #1a0033;
-        border: 2px dashed #2468ff;
-        border-radius: 12px;
-        margin-bottom: 10px;
-        overflow: hidden;
-        position: relative;
-      }
-  
-      #pdf-container { position: relative; width: 100%; height: 100%; }
-      .pdfOverlayInput {
-        position: absolute;
-        border: 1px solid #8a2be2;
-        background: rgba(255,255,255,0.7);
-        font-size: 1rem;
-        padding: 0;
-        margin: 0;
-        height: 1.5em;
-        z-index: 10;
-      }
-  
-      @media (max-width: 1024px) {
-        .wrapper {
-          flex-direction: column;
-          height: auto;
-          padding-bottom: 40px;
-        }
-  
-        .chat-section,
-        .form-section {
-          width: 100%;
-          max-width: 100%;
-          height: auto;
-        }
-      }
-    </style>
-  
-    {% if filename %}
-    <script type="text/javascript">
-      window.pdfFieldPositions = {{ session.get('field_positions', {}) | tojson | safe }};
-      window.pdfFilename = "{{ filename }}";
-    </script>
-    {% endif %}
-  
-  </head>
-  
-<body>
+<head>
+  <meta charset="UTF-8">
+  <title>FormFillBot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+</script>
+
+
+
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(145deg, #2e005e, #5a0fa6, #b04bff);
+      color: #fff; box-sizing: border-box;
+      height: 100%;
+      overflow-x: hidden; overflow-y: auto;
+    }
+    body { display: flex; flex-direction: column; min-height: 100vh; }
+    header {
+      position: fixed; top: 0; left: 0; right: 0;
+      background: linear-gradient(to right, #2e005e, #5a0fa6);
+      padding: 20px 40px; display: flex; justify-content: flex-end; z-index: 9999;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    header nav a {
+      margin-left: 25px; text-decoration: none; color: white;
+      font-weight: 500; position: relative;
+    }
+    header nav a::after {
+      content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px;
+      background-color: #c240ff; transition: width 0.3s ease;
+    }
+    header nav a:hover::after { width: 100%; }
+    .wrapper {
+      padding-top: 100px; margin: 0 auto 40px auto; display: flex; flex-direction: row;
+      justify-content: space-between; gap: 40px; max-width: 1400px; width: 95%; flex-grow: 1;
+    }
+    .chat-section, .form-section {
+      flex: 1; max-width: 49%; height: 720px; display: flex; flex-direction: column;
+      border: 3px solid #9129fc; border-radius: 20px;
+      box-shadow: 0 0 30px rgba(255, 0, 255, 0.3); overflow: hidden;
+    }
+    .chat-section {
+      position: relative; padding: 20px;
+      background: url('/static/botchatbackground.png') no-repeat center center;
+      background-size: cover;
+    }
+    .chat-section::before {
+      content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(18, 0, 44, 0.85); border-radius: 20px; z-index: 0;
+    }
+    .chat-section > * { position: relative; z-index: 1; }
+    .form-section { padding: 20px; background: #12002c; }
+    .bot-header {
+      display: flex; align-items: center; font-size: 24px; font-weight: bold;
+      color: #fff; margin-bottom: 20px;
+    }
+    .bot-header img { width: 40px; height: 40px; margin-right: 10px; border-radius: 50%; }
+    .chat-box {
+      flex-grow: 1; overflow-y: auto; border-radius: 12px; padding: 10px;
+      margin-bottom: 10px; display: flex; flex-direction: column;
+      align-items: flex-start; background: transparent;
+    }
+    .message.bot {
+      background: linear-gradient(to right, #9129fc, #f626a3); padding: 12px;
+      margin-bottom: 10px; border-radius: 12px; color: #fff; max-width: 80%;
+    }
+    .message.user {
+      background: #1a1a1a; padding: 12px; margin-bottom: 10px; border-radius: 12px;
+      color: #fff; align-self: flex-end; max-width: 80%;
+    }
+    .chat-input { display: flex; gap: 10px; }
+    .chat-input input {
+      flex: 1; padding: 10px; border: none; border-radius: 8px; outline: none;
+    }
+    .chat-input button {
+      background-color: #2468ff; border: none; padding: 10px 16px; color: white;
+      font-weight: bold; border-radius: 8px; cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .chat-input button:hover { background-color: #1d52cc; }
+    .form-header {
+      display: flex; justify-content: flex-start; align-items: center;
+      gap: 20px; color: #ffffff; margin-bottom: 10px;
+    }
+    .form-actions { display: flex; gap: 10px; align-items: center; }
+    .form-actions form, .form-actions a.export { display: inline-block; }
+    .button-style {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 130px;
+      height: 42px; padding: 0 16px; border: none; border-radius: 8px; font-weight: bold;
+      font-size: 14px; text-align: center; text-decoration: none; color: white; cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .upload-button { background-color: #2468ff; }
+    .upload-button:hover { background-color: #1d52cc; }
+    .remove-button { background-color: #d11a2a; }
+    .remove-button:hover { background-color: #a50e1d; }
+    .export { background-color: #8c2eff; }
+    .export:hover { background-color: #6b1edb; }
+    .pdf-viewer-box {
+      height: 300px; background: #1a0033; border: 2px dashed #2468ff;
+      border-radius: 12px; margin-bottom: 10px; overflow: hidden; position: relative;
+    }
+    #pdf-container { position: relative; width: 100%; height: 100%; }
+    .pdfOverlayInput {
+      position: absolute; border: 1px solid #8a2be2; background: rgba(255,255,255,0.7);
+      font-size: 1rem; padding: 0; margin: 0; height: 1.5em; z-index: 10;
+    }
+    @media (max-width: 1024px) {
+      .wrapper { flex-direction: column; height: auto; padding-bottom: 40px; }
+      .chat-section, .form-section { width: 100%; max-width: 100%; height: auto; }
+    }
+  </style>
+
+
+</head>
+<body
+  {% if filename %}
+    data-filename="{{ filename }}"
+    data-positions='{{ session.get("field_positions", {}) | tojson | safe }}'
+    data-values='{{ session.get("field_state", {}).get("_answered", {}) | tojson | safe }}'
+  {% endif %}
+>
 
 <header>
-<<<<<<< HEAD
   <nav>
-    <a href="/main">Main</a>
+    <a href="/main">Startseite</a>
     <a href="/interface">FormFillBot</a>
     <a href="/profil">Profil</a>
-    <a href="/landing">Logout</a>
-=======
-     <nav>
-    <a href=/main>Main</a>
-    <a href=/interface>FormFillBot</a>
-    <a href=/profil>Profil</a>
-    <a href=/main>Logout</a>
->>>>>>> 32cb7cf65f4861a7feabfb440b664ba1105aba6b
+    <a href="/main">Logout</a>
   </nav>
 </header>
 
@@ -438,41 +270,57 @@
   };
 </script>
 
-{% if filename %}
 <script>
   // PDF Overlay Inputs
   document.addEventListener("DOMContentLoaded", () => {
-    const url = `/uploaded/${window.pdfFilename}`;
-    const fieldPositions = window.pdfFieldPositions || {};
-    const canvas = document.getElementById('pdf-canvas');
-    const ctx = canvas.getContext('2d');
-    const scale = 1.5;
+  const body = document.body;
+  const filename = body.dataset.filename;
+  console.log("Filename:", filename);
+  if (!filename) {
+    console.log("Keine PDF zum Anzeigen");
+    return;
+  }
 
-    pdfjsLib.getDocument(url).promise.then(pdf => {
-      pdf.getPage(1).then(page => {
-        const viewport = page.getViewport({ scale: scale });
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
-          Object.entries(fieldPositions).forEach(([name, pos]) => {
-            if(pos.page !== 0) return; // Nur erste Seite als Beispiel
-            const input = document.createElement('input');
-            input.className = 'pdfOverlayInput';
-            input.placeholder = name;
-            input.style.left = `${pos.x * scale}px`;
-            const top = canvas.height - (pos.y + pos.height) * scale;
-            input.style.top = `${top}px`;
-            input.style.width = `${pos.width * scale}px`;
-            input.style.height = `${pos.height * scale}px`;
-            input.value = '';
-            document.getElementById('pdf-container').appendChild(input);
-          });
-        });
+  const fieldPositions = JSON.parse(body.dataset.positions || "{}");
+  const fieldValues = JSON.parse(body.dataset.values || "{}");
+  const url = `/uploaded/${filename}`;
+  console.log("PDF URL:", url);
+
+  const canvas = document.getElementById('pdf-canvas');
+const ctx = canvas.getContext('2d');
+const container = document.getElementById('pdf-container');
+const desiredWidth = container.clientWidth;
+
+pdfjsLib.getDocument(url).promise.then(pdf => {
+  pdf.getPage(1).then(page => {
+    const unscaledViewport = page.getViewport({ scale: 1 });
+    const scale = desiredWidth / unscaledViewport.width;
+    const viewport = page.getViewport({ scale });
+
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    page.render({ canvasContext: ctx, viewport }).promise.then(() => {
+      console.log("Seite gerendert");
+      Object.entries(fieldPositions).forEach(([name, pos]) => {
+        if (pos.page !== 0) return;
+        const input = document.createElement('input');
+        input.className = 'pdfOverlayInput';
+        input.placeholder = name;
+        input.style.left = `${pos.x * scale}px`;
+        const top = canvas.height - (pos.y + pos.height) * scale;
+        input.style.top = `${top}px`;
+        input.style.width = `${pos.width * scale}px`;
+        input.style.height = `${pos.height * scale}px`;
+        input.value = fieldValues[name] || '';
+        container.appendChild(input);
       });
-    });
-  });
+    }).catch(err => console.error("Render Fehler:", err));
+  }).catch(err => console.error("Seiten Fehler:", err));
+}).catch(err => console.error("PDF Laden Fehler:", err));
+});
+
 </script>
-{% endif %}
 
 </body>
 </html>

@@ -11,16 +11,12 @@ from pypdf.generic import NameObject, DictionaryObject, BooleanObject
 from dotenv import load_dotenv
 from gemini_client import get_gemini_response  # 💡 Wichtig: Gemini-Client importieren
 
-<<<<<<< HEAD
-# .env laden
-=======
 # Supabase and password hashing imports
 from supabase import create_client, Client
 import bcrypt
 from datetime import datetime
 
 # Load environment variables
->>>>>>> 32cb7cf65f4861a7feabfb440b664ba1105aba6b
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -37,22 +33,10 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 def hash_password(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-<<<<<<< HEAD
-def is_valid_pdf_uploaded():
-    filename = session.get("filename")
-    form_fields = session.get("form_fields", {})
-    return bool(filename and isinstance(form_fields, dict) and len(form_fields) > 0)
-
-
-def save_user_data(data):
-    with open(USER_DATA_FILE, "w") as f:
-        json.dump(data, f)
-=======
 def verify_password(password, hashed):
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 # ---- PDF Logic (same as before) ----
->>>>>>> 32cb7cf65f4861a7feabfb440b664ba1105aba6b
 
 def extract_form_fields_ordered_by_position(pdf_path):
     reader = PdfReader(pdf_path)
@@ -119,11 +103,10 @@ def extract_form_fields(pdf_path):
 
 
 
-@app.route("/", methods=["GET"])
-def index():
-    filename = session.get("filename")  # ✅ Nur lesen, nicht löschen!
-    return render_template("interface.html", filename=filename)
-
+@app.route("/interface")
+def interface():
+    filename = session.get("filename")
+    return render_template('interface.html', filename=filename)
 
 @app.route("/upload", methods=["POST"])
 def upload_pdf():
@@ -138,26 +121,26 @@ def upload_pdf():
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
-    # ⛔️ Vorherige Formular-Zustände entfernen
+    # Vorherige Formular-Zustände entfernen
     session.pop("field_state", None)
 
-    # 📥 Neue Datei + leeren Zustand setzen
+    # Neue Datei + leeren Zustand setzen
     session["filename"] = filename
     session["field_state"] = {"_asked": [], "_answered": {}}
 
-    # 🧾 Formularfelder extrahieren (alle Felder)
+    # Formularfelder extrahieren (alle Felder)
     fields = extract_form_fields(filepath)
     session["form_fields"] = fields
 
-    # 🆕 Reihenfolge extrahieren und speichern!
+    # Reihenfolge extrahieren und speichern
     field_order = extract_form_fields_ordered_by_position(filepath)
     session["field_order"] = field_order
 
-    # 🆕 Positionen extrahieren und speichern!
+    # Positionen extrahieren und speichern
     field_positions = extract_form_fields_positions(filepath)
     session["field_positions"] = field_positions
 
-    return redirect(url_for("index"))
+    return redirect(url_for("interface"))
 
 
 @app.route("/remove", methods=["POST"])
@@ -165,7 +148,8 @@ def remove_pdf():
     session.pop("filename", None)
     session.pop("form_fields", None)
     session.pop("field_state", None)
-    return redirect(url_for("index"))
+    return redirect(url_for("interface"))
+
 
 @app.route("/uploaded/<filename>")
 def uploaded_file(filename):
@@ -403,16 +387,11 @@ def main():
         return redirect(url_for("login"))
     return render_template('main.html')
 
-@app.route('/interface')
-def interface():
-    return render_template('interface.html')
+
 
 if __name__ == "__main__":
     app.run(debug=True)
 
-<<<<<<< HEAD
-
-=======
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
@@ -484,5 +463,4 @@ def login():
 
     # GET: Render the login form
     return render_template("login.html")
->>>>>>> 32cb7cf65f4861a7feabfb440b664ba1105aba6b
 
