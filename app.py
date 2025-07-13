@@ -298,7 +298,7 @@ def export_pdf():
 def logout():
     session.clear()
     flash("Erfolgreich ausgeloggt.")
-    return redirect(url_for("login"))
+    return redirect(url_for("main"))
 
 @app.before_request
 def print_session_state():
@@ -312,28 +312,28 @@ def print_session_state():
 def profil():
     user_email = session.get("user_email")
 
-
-    # Example: Fetch current profile from Supabase
+    # Aktuelles Profil holen
     res = supabase.table("signup").select("*").eq("email", user_email).execute()
     user = res.data[0] if res.data else {}
 
     if request.method == "POST":
-        name = request.form.get("name")
+        vorname = request.form.get("name")          # HTML-Feldname ist weiterhin "name"
         email = request.form.get("email")
         nachname = request.form.get("nachname")
-        # ...other fields if you add them...
-        # Update user info in Supabase
+
+        # Daten aktualisieren
         supabase.table("signup").update({
-            "name": name,
+            "vorname": vorname,
             "lastname": nachname,
             "email": email
         }).eq("email", user_email).execute()
 
-        session["user_email"] = email  # Update session if email changed
+        session["user_email"] = email
         flash("Profil erfolgreich aktualisiert!")
-        return redirect(url_for("profil"))
+        return redirect(url_for("profil"))  # ← MUSS innerhalb der if und der Funktion eingerückt sein!
 
-    return render_template("profil.html", user=user)
+    return render_template("profil.html", user=user)  # ← auch richtig eingerückt
+
 
 @app.route('/main')
 def main():
@@ -343,13 +343,13 @@ def main():
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
+        vorname = request.form.get("vorname", "").strip()
         lastname = request.form.get("lastname", "").strip()
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
         # Validate input
-        if not name or not lastname or not email or not password:
+        if not vorname or not lastname or not email or not password:
             flash("Bitte alle Felder ausfüllen.")
             return redirect(url_for("signup"))
 
@@ -364,7 +364,7 @@ def signup():
 
         # Insert into signup table
         supabase.table("signup").insert({
-            "name": name,
+            "vorname": vorname,
             "lastname": lastname,
             "email": email,
             "password": hashed_password
