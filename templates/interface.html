@@ -131,10 +131,11 @@
 
 <header>
   <nav>
-    <a href="/main">Startseite</a>
-    <a href="/interface">FormFillBot</a>
+    <a href="{{ url_for('main') }}">Home</a>
+    <a href="{{ url_for('interface') }}">FormFillBot</a>
     <a href="/profil">Profil</a>
-    <a href="/main">Logout</a>
+    <a href="{{ url_for('logout') }}">Logout</a>
+
   </nav>
 </header>
 

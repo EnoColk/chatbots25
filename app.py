@@ -1,6 +1,7 @@
 import os
 import io
 import json
+from functools import wraps
 from flask import (
     Flask, request, render_template, redirect, url_for,
     send_from_directory, session, jsonify, flash
@@ -27,6 +28,15 @@ app = Flask(__name__)
 app.secret_key = "supersecretkey"
 app.config["UPLOAD_FOLDER"] = "uploads"
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+def login_required(view_func):
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Bitte logge dich ein.")
+            return redirect(url_for("login"))
+        return view_func(*args, **kwargs)
+    return wrapped_view
 
 # ---- User Auth: Supabase DB ----
 
@@ -104,9 +114,11 @@ def extract_form_fields(pdf_path):
 
 
 @app.route("/interface")
+@login_required
 def interface():
     filename = session.get("filename")
     return render_template('interface.html', filename=filename)
+
 
 @app.route("/upload", methods=["POST"])
 def upload_pdf():
@@ -282,82 +294,24 @@ def export_pdf():
         mimetype='application/pdf'
     )
 
-# ---- Supabase Signup/Login ----
-
-@app.route("/signup", methods=["GET", "POST"])
-def signup():
-    if request.method == "POST":
-        name = request.form.get("name", "")
-        lastname = request.form.get("lastname", "")
-        email = request.form.get("email")
-        password = request.form.get("password")
-
-        # Check if email exists
-        result = supabase.table("signup").select("id").eq("email", email).execute()
-        if result.data:
-            flash("E-Mail existiert bereits!")
-            return redirect(url_for("signup"))
-
-        hashed_password = hash_password(password)
-        # Insert into signup table
-        supabase.table("signup").insert({
-            "name": name,
-            "lastname": lastname,
-            "email": email,
-            "password": hashed_password
-        }).execute()
-        flash("Registrierung erfolgreich! Bitte loggen Sie sich ein.")
-        return redirect(url_for("login"))
-
-    return render_template("signup.html")
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-
-        # Fetch user by email
-        res = supabase.table("signup").select("*").eq("email", email).execute()
-        user = res.data[0] if res.data else None
-
-        success = False
-        if user and verify_password(password, user["password"]):
-            session["user_id"] = user["id"]
-            session["user_email"] = user["email"]
-            flash("Login erfolgreich!")
-            success = True
-            redirect_url = url_for("main")
-        else:
-            flash("Login fehlgeschlagen.")
-            redirect_url = url_for("login")
-
-        # Log attempt in login table
-        supabase.table("login").insert({
-            "email": email,
-            "password": user["password"] if user else "",
-            "login_date": datetime.utcnow().isoformat(),
-            "success": success
-        }).execute()
-
-        return redirect(redirect_url)
-
-    return render_template("login.html")
-
 @app.route("/logout")
 def logout():
     session.clear()
     flash("Erfolgreich ausgeloggt.")
     return redirect(url_for("login"))
 
+@app.before_request
+def print_session_state():
+    print("Aktuelle Session:", dict(session))
+
+
 # --- Profile logic stays as before, or adapt to Supabase as needed ---
 
 @app.route("/profil", methods=["GET", "POST"])
+@login_required
 def profil():
     user_email = session.get("user_email")
-    if not user_email:
-        flash("Bitte loggen Sie sich zuerst ein.")
-        return redirect(url_for("login"))
+
 
     # Example: Fetch current profile from Supabase
     res = supabase.table("signup").select("*").eq("email", user_email).execute()
@@ -383,14 +337,8 @@ def profil():
 
 @app.route('/main')
 def main():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
     return render_template('main.html')
 
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -463,4 +411,9 @@ def login():
 
     # GET: Render the login form
     return render_template("login.html")
+
+    print("Starte Flask-App")
+if __name__ == "__main__":
+    app.run(debug=True)
+
 

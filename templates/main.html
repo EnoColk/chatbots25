@@ -129,8 +129,16 @@
       <h2>FormFillBot</h2>
     </div>
      <nav>
-    <a href=/main>Startseite</a>
-    <a href=/interface>FormFillBot</a>
+      <a href="{{ url_for('main') }}">Home</a>
+    <a href="{{ url_for('interface') }}">FormFillBot</a>
+   {% if session.get("user_id") %}
+    <a href="{{ url_for('logout') }}">Logout</a>
+   {% else %}
+    <a href="{{ url_for('login') }}">Login</a>
+   {% endif %}
+
+
+
   </nav>
   </header>
 
@@ -138,7 +146,7 @@
     <img src="static/images/logo.png" alt="FormFillBot Bot" />
     <h1>FormFillBot</h1>
     <p>Einfach PDF-Formulare ausfüllen</p>
-    <button class="btn" onclick="window.location.href='signup.html'">Jetzt loslegen</button>
+    <button class="btn" onclick="window.location.href='/login'">Jetzt loslegen</button>
   </div>
 
 </body>

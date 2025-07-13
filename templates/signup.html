@@ -132,7 +132,7 @@
       <h2>FormFillBot</h2>
     </div>
     <nav>
-      <a href="main.html">Startseite</a>
+    <a href="{{ url_for('main') }}">Home</a>
       <a href="#">Über uns</a>
     </nav>
   </header>
@@ -141,7 +141,7 @@
     <div class="card">
       <h2 class="card-title">Konto erstellen</h2>
       <form method="post" action="/signup">
-        <input type="text" name="name" placeholder="Name" autocomplete="given-name" required />
+        <input type="text" name="vorname" placeholder="Vorname" autocomplete="given-name" required />
         <input type="text" name="lastname" placeholder="Nachname" autocomplete="family-name" required />
         <input type="email" name="email" placeholder="E-Mail" required autocomplete="email" />
         <input type="password" name="password" placeholder="Passwort" required autocomplete="new-password" />
