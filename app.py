@@ -1,6 +1,7 @@
 import os
 import io
 import json
+from datetime import datetime, timezone
 from functools import wraps
 from flask import (
     Flask, request, render_template, redirect, url_for,
@@ -379,38 +380,46 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
+        email = request.form["email"]
+        password = request.form["password"]
 
-        # Fetch user by email
-        res = supabase.table("signup").select("*").eq("email", email).execute()
-        user = res.data[0] if res.data else None
+        user_query = supabase.table("signup").select("id, password").eq("email", email).execute()
+        user_data = user_query.data[0] if user_query.data else None
 
         success = False
-        if user and verify_password(password, user["password"]):
-            # Correct password
-            session["user_id"] = user["id"]
-            session["user_email"] = user["email"]
-            flash("Login erfolgreich!")
-            success = True
-            redirect_url = url_for("main")
-        else:
-            # Wrong credentials
-            flash("E-Mail oder Passwort falsch.")
-            redirect_url = url_for("login")
+        redirect_url = url_for("login")
 
-        # Log every attempt (success/fail)
+        if user_data and user_data.get("password"):
+            try:
+                if verify_password(password, user_data["password"]):
+
+                    session["user_id"] = user_data["id"]
+                    session["user_email"] = email
+                    success = True
+                    redirect_url = url_for("main")
+                    flash("Login erfolgreich!")
+                else:
+                    flash("Falsches Passwort.")
+            except ValueError:
+                flash("Ungültiger Passwort-Hash.")
+        else:
+            flash("Benutzer nicht gefunden.")
+
+        # Login-Versuch speichern
         supabase.table("login").insert({
+            "user_id": user_data["id"] if user_data else None,
             "email": email,
-            "password": user["password"] if user else "",
-            "login_date": datetime.utcnow().isoformat(),
+            "password": user_data["password"] if user_data else "",
+            "login_date": datetime.now(timezone.utc).isoformat(),
             "success": success
         }).execute()
 
         return redirect(redirect_url)
 
-    # GET: Render the login form
     return render_template("login.html")
+
+
+
 
     print("Starte Flask-App")
 if __name__ == "__main__":
