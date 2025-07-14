@@ -11,14 +11,10 @@ from werkzeug.utils import secure_filename
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import NameObject, DictionaryObject, BooleanObject
 from dotenv import load_dotenv
-from gemini_client import get_gemini_response  # 💡 Wichtig: Gemini-Client importieren
-
-# Supabase and password hashing imports
+from gemini_client import get_gemini_response
 from supabase import create_client, Client
 import bcrypt
-from datetime import datetime
 
-# Load environment variables
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -30,6 +26,7 @@ app.secret_key = "supersecretkey"
 app.config["UPLOAD_FOLDER"] = "uploads"
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
+# Login erforderlich für bestimmte Routen
 def login_required(view_func):
     @wraps(view_func)
     def wrapped_view(*args, **kwargs):
@@ -39,21 +36,17 @@ def login_required(view_func):
         return view_func(*args, **kwargs)
     return wrapped_view
 
-# ---- User Auth: Supabase DB ----
-
+# Passwort-Hashing mit bcrypt
 def hash_password(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(password, hashed):
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
-# ---- PDF Logic (same as before) ----
-
+# Formulardaten aus PDF nach Reihenfolge der Positionen extrahieren
 def extract_form_fields_ordered_by_position(pdf_path):
     reader = PdfReader(pdf_path)
     field_data = []
-    fields = {}
-
     for page_index, page in enumerate(reader.pages):
         annotations = page.get("/Annots", [])
         for annot in annotations:
@@ -66,11 +59,11 @@ def extract_form_fields_ordered_by_position(pdf_path):
                     x_center = (llx + urx) / 2
                     y_center = (lly + ury) / 2
                     field_data.append((page_index, -y_center, x_center, name))
-    # Sortieren: Seite, y-Achse (von oben nach unten), x-Achse (von links nach rechts)
     sorted_fields = sorted(field_data, key=lambda x: (x[0], x[1], x[2]))
     field_order = [name for _, _, _, name in sorted_fields]
     return field_order
 
+# Positionen aller Formularfelder extrahieren
 def extract_form_fields_positions(pdf_path):
     reader = PdfReader(pdf_path)
     positions = {}
@@ -94,51 +87,42 @@ def extract_form_fields_positions(pdf_path):
                     }
     return positions
 
-
-
-
-
+# Formularfelder und Labels aus PDF extrahieren
 def extract_form_fields(pdf_path):
     reader = PdfReader(pdf_path)
     fields = {}
-    labels = {}  # <--- Neu
+    labels = {}
     if reader.get_fields():
         for field in reader.get_fields().values():
             name = field.get('/T')
             value = field.get('/V', '')
-            tooltip = field.get('/TU', '')  # <--- Tooltip oder anderer Feldtext
+            tooltip = field.get('/TU', '')
             if name:
                 fields[name] = value or ''
-                labels[name] = tooltip if tooltip else name  # <--- Nehme Label = TU oder fallback
+                labels[name] = tooltip if tooltip else name
     return fields, labels
 
-
-
-
-
-
-
+# Interface-Seite anzeigen
 @app.route("/interface")
 @login_required
 def interface():
     filename = session.get("filename")
     return render_template(
-    'interface.html',
-    filename=filename,
-    labels=session.get("field_labels", {}),
-    positions=session.get("field_positions", {}),
-    values=session.get("field_state", {}).get("_answered", {})
-)
+        'interface.html',
+        filename=filename,
+        labels=session.get("field_labels", {}),
+        positions=session.get("field_positions", {}),
+        values=session.get("field_state", {}).get("_answered", {})
+    )
 
-
-
+# PDF-Upload und Formulardaten-Initialisierung
 @app.route("/upload", methods=["POST"])
 def upload_pdf():
-    import re  # Falls nicht global vorhanden
+    import re
 
     def prettify_field_name(name):
-        name = re.sub(r"[_\-]+", " ", name)         # Unterstriche/Bindestriche → Leerzeichen
-        name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)  # camelCase trennen
+        name = re.sub(r"[_\-]+", " ", name)
+        name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)
         return name.strip().capitalize()
 
     if "pdf_file" not in request.files:
@@ -151,38 +135,20 @@ def upload_pdf():
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
-
-    # Vorherige Formular-Zustände entfernen
     session.pop("field_state", None)
-
-    # Neue Datei + leeren Zustand setzen
     session["filename"] = filename
     session["field_state"] = {"_asked": [], "_answered": {}}
-
-    # Reihenfolge extrahieren und speichern
     field_order = extract_form_fields_ordered_by_position(filepath)
     session["field_order"] = field_order
-
-    # Positionen extrahieren und speichern
     field_positions = extract_form_fields_positions(filepath)
     session["field_positions"] = field_positions
-
-    # Form-Felder extrahieren
-    fields, _ = extract_form_fields(filepath)  # ⛔️ keine Labels hier nötig
+    fields, _ = extract_form_fields(filepath)
     session["form_fields"] = fields
-
-    # Labels aus Namen generieren (clean + lesbar)
     session["field_labels"] = {name: prettify_field_name(name) for name in field_order}
-
-    # Leere Antworten vorbereiten
     session["field_state"]["_answered"] = {}
-
     return redirect(url_for("interface"))
 
-
-
-
-
+# PDF aus Session entfernen
 @app.route("/remove", methods=["POST"])
 def remove_pdf():
     session.pop("filename", None)
@@ -190,15 +156,16 @@ def remove_pdf():
     session.pop("field_state", None)
     return redirect(url_for("interface"))
 
-
+# PDF bereitstellen
 @app.route("/uploaded/<filename>")
 def uploaded_file(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
-# 🔍 Prüft, ob ein gültiges PDF mit Formularfeldern hochgeladen wurde
+# Prüft, ob ein gültiges PDF hochgeladen wurde
 def is_valid_pdf_uploaded():
     return "filename" in session and "form_fields" in session and bool(session["form_fields"])
 
+# Haupt-Chat-API für Formulardialog und Validierung
 @app.route("/api/chat", methods=["POST"])
 def chat():
     user_message = request.json.get("message")
@@ -238,7 +205,6 @@ def chat():
         last_field = field_state["_asked"][-1]
         user_input = user_message.strip()
         label = field_labels.get(last_field, last_field)
-
         remaining = [f for f in field_order if f not in field_state["_answered"] and f != last_field]
         next_field = remaining[0] if remaining else None
         next_label = field_labels.get(next_field, next_field) if next_field else ""
@@ -265,17 +231,16 @@ Wenn die Eingabe **gültig** ist, frage explizit:
 
 Verwende die Du-Form. Antworte nur mit Rückfrage oder nächster Frage.
 """
-
         response = get_gemini_response(validation_prompt).strip()
 
-        # Rückfrage? → NICHT speichern
+        # Rückfrage? → nicht speichern
         if any(word in response.lower() for word in ["ungültig", "unvollständig", "falsch", "format", "vervollständig", "korrektur"]):
             return jsonify({
                 "reply": response,
                 "updated_fields": {}
             })
 
-        # Gemini muss wirklich zur nächsten Frage überleiten
+        # Falls Gemini nicht zur nächsten Frage überleitet
         if next_field and next_label.lower() not in response.lower():
             return jsonify({
                 "reply": f"Deine Antwort wurde verarbeitet. Bitte gib deinen Wert für „{next_label}“ an.",
@@ -306,21 +271,7 @@ Verwende die Du-Form. Antworte nur mit Rückfrage oder nächster Frage.
         "updated_fields": {}
     })
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Exportiert das ausgefüllte PDF
 @app.route("/export", methods=["GET"])
 def export_pdf():
     filename = session.get("filename")
@@ -329,15 +280,9 @@ def export_pdf():
     if not filename or not answers:
         return "Keine Daten zum Exportieren", 400
 
-    print("🔍 Starte PDF-Export...")
-    print("📤 Antworten zur Übergabe an PDF:")
-    for key, value in answers.items():
-        print(f" → {key}: {value}")
-
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     reader = PdfReader(filepath)
     writer = PdfWriter()
-
     for page in reader.pages:
         writer.add_page(page)
 
@@ -346,24 +291,14 @@ def export_pdf():
         writer._root_object.update({
             NameObject("/AcroForm"): acroform.get_object()
         })
-
-        # Jetzt Felder setzen
         writer.update_page_form_field_values(writer.pages[0], answers)
-    else:
-        print("⚠️ Keine AcroForm im PDF – Export nicht möglich.")
-
     output = io.BytesIO()
     writer.write(output)
     output.seek(0)
-
     export_filename = f"ausgefuellt_{filename}"
     export_path = os.path.join(app.config["UPLOAD_FOLDER"], export_filename)
-
     with open(export_path, "wb") as f:
         f.write(output.read())
-
-    print("✅ Export abgeschlossen:", export_filename)
-
     return send_from_directory(
         directory=app.config["UPLOAD_FOLDER"],
         path=export_filename,
@@ -372,57 +307,45 @@ def export_pdf():
         mimetype='application/pdf'
     )
 
-
-
-
-
-
+# Benutzer abmelden
 @app.route("/logout")
 def logout():
     session.clear()
     flash("Erfolgreich ausgeloggt.")
     return redirect(url_for("main"))
 
+# Session-Status für Debugging ausgeben
 @app.before_request
 def print_session_state():
     print("Aktuelle Session:", dict(session))
 
-
-# --- Profile logic stays as before, or adapt to Supabase as needed ---
-
+# Profil-Anzeige und -Bearbeitung
 @app.route("/profil", methods=["GET", "POST"])
 @login_required
 def profil():
     user_email = session.get("user_email")
-
-    # Aktuelles Profil holen
     res = supabase.table("signup").select("*").eq("email", user_email).execute()
     user = res.data[0] if res.data else {}
-
     if request.method == "POST":
-        vorname = request.form.get("name")          # HTML-Feldname ist weiterhin "name"
+        vorname = request.form.get("name")
         email = request.form.get("email")
         nachname = request.form.get("nachname")
-
-        # Daten aktualisieren
         supabase.table("signup").update({
             "vorname": vorname,
             "lastname": nachname,
             "email": email
         }).eq("email", user_email).execute()
-
         session["user_email"] = email
         flash("Profil erfolgreich aktualisiert!")
-        return redirect(url_for("profil"))  # ← MUSS innerhalb der if und der Funktion eingerückt sein!
+        return redirect(url_for("profil"))
+    return render_template("profil.html", user=user)
 
-    return render_template("profil.html", user=user)  # ← auch richtig eingerückt
-
-
+# Main-Page
 @app.route('/main')
 def main():
     return render_template('main.html')
 
-
+# Registrierung neuer Benutzer
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
@@ -430,51 +353,37 @@ def signup():
         lastname = request.form.get("lastname", "").strip()
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-
-        # Validate input
         if not vorname or not lastname or not email or not password:
             flash("Bitte alle Felder ausfüllen.")
             return redirect(url_for("signup"))
-
-        # Check if email already exists
         result = supabase.table("signup").select("id").eq("email", email).execute()
         if result.data:
             flash("E-Mail existiert bereits!")
             return redirect(url_for("signup"))
-
-        # Hash the password
         hashed_password = hash_password(password)
-
-        # Insert into signup table
         supabase.table("signup").insert({
             "vorname": vorname,
             "lastname": lastname,
             "email": email,
             "password": hashed_password
         }).execute()
-
         flash("Registrierung erfolgreich! Bitte loggen Sie sich ein.")
         return redirect(url_for("login"))
-
-    # GET: Render the signup form
     return render_template("signup.html")
 
+# Login-Funktion
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
-
         user_query = supabase.table("signup").select("id, password").eq("email", email).execute()
         user_data = user_query.data[0] if user_query.data else None
-
         success = False
         redirect_url = url_for("login")
-
         if user_data and user_data.get("password"):
             try:
                 if verify_password(password, user_data["password"]):
-
                     session["user_id"] = user_data["id"]
                     session["user_email"] = email
                     success = True
@@ -486,8 +395,6 @@ def login():
                 flash("Ungültiger Passwort-Hash.")
         else:
             flash("Benutzer nicht gefunden.")
-
-        # Login-Versuch speichern
         supabase.table("login").insert({
             "user_id": user_data["id"] if user_data else None,
             "email": email,
@@ -495,16 +402,10 @@ def login():
             "login_date": datetime.now(timezone.utc).isoformat(),
             "success": success
         }).execute()
-
         return redirect(redirect_url)
-
     return render_template("login.html")
 
-
-
-
-    print("Starte Flask-App")
+# Start der Flask-App
 if __name__ == "__main__":
+    print("Starte Flask-App")
     app.run(debug=True)
-
-

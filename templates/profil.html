@@ -5,163 +5,8 @@
   <title>Profilseite | FormFillBot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='profil.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(145deg, #2e005e, #5a0fa6, #b04bff);
-      color: #fff;
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      background: linear-gradient(to right, #2e005e, #5a0fa6);
-      padding: 20px 40px;
-      display: flex;
-      justify-content: flex-end;
-      z-index: 9999;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    }
-    header nav a {
-      margin-left: 25px;
-      text-decoration: none;
-      color: white;
-      font-weight: 500;
-      position: relative;
-    }
-    header nav a::after {
-      content: '';
-      position: absolute;
-      bottom: -4px;
-      left: 0;
-      width: 0;
-      height: 2px;
-      background-color: #c240ff;
-      transition: width 0.3s ease;
-    }
-    header nav a:hover::after {
-      width: 100%;
-    }
-    main {
-      padding: 120px 20px 40px 20px;
-      flex-grow: 1;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: calc(100vh - 160px);
-    }
-    .content-container {
-      width: 720px;       /* Breiter */
-      height: 560px;      /* Höher */
-      background: rgba(18, 0, 44, 0.9);
-      border-radius: 20px;
-      box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
-      padding: 30px 40px;
-      display: flex;
-      gap: 30px;
-      overflow: hidden; /* Keine Scrollbars */
-      align-items: stretch;
-      transition: height 0.3s ease;
-    }
-    .tab-menu {
-      width: 160px;   /* bisschen breiter */
-      display: flex;
-      flex-direction: column;
-      border-right: 3px solid #9129fc;
-      border-radius: 20px 0 0 20px;
-      background: rgba(146, 41, 252, 0.15);
-      box-shadow: inset 3px 0 6px rgba(146, 41, 252, 0.6);
-      height: 100%;
-      overflow: hidden; /* Kein Scroll */
-    }
-    .tab-menu button {
-      background: none;
-      border: none;
-      color: #ddd;
-      padding: 18px 20px;
-      text-align: left;
-      font-weight: 700;
-      font-size: 16px;
-      cursor: pointer;
-      border-left: 5px solid transparent;
-      transition: all 0.3s ease;
-      outline: none;
-      letter-spacing: 0.02em;
-      text-shadow: 0 0 8px rgba(146, 41, 252, 0.7);
-    }
-    .tab-menu button.active,
-    .tab-menu button:hover {
-      color: #ff36c4;
-      border-left: 5px solid #ff36c4;
-      background: rgba(255, 54, 196, 0.15);
-      text-shadow: 0 0 14px #ff36c4;
-    }
-    .tab-content {
-      flex: 1;
-      padding-left: 20px;
-      height: 100%;
-      overflow: hidden;  /* Scroll entfernen */
-      box-sizing: border-box;
-    }
-    form {
-      height: 100%;    /* Damit Formulare die volle Höhe ausfüllen */
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-    }
-    form label {
-      display: block;
-      margin-bottom: 18px;
-      font-weight: 600;
-      font-size: 15px;
-      color: #ddd;
-      letter-spacing: 0.01em;
-    }
-    form input[type="text"],
-    form input[type="email"],
-    form select {
-      width: 100%;
-      padding: 10px 14px;
-      border-radius: 12px;
-      border: none;
-      font-size: 15px;
-      background: #300066;
-      color: white;
-      box-shadow: inset 0 0 8px #9129fc;
-      outline: none;
-      transition: box-shadow 0.3s ease;
-      font-weight: 500;
-      letter-spacing: 0.01em;
-    }
-    form input[type="text"]:focus,
-    form input[type="email"]:focus,
-    form select:focus {
-      box-shadow: inset 0 0 12px #f626a3;
-    }
-    form button {
-      margin-top: auto; /* Button immer unten */
-      padding: 14px 32px;
-      font-size: 18px;
-      background: linear-gradient(to right, #f626a3, #9129fc);
-      border: none;
-      border-radius: 14px;
-      color: white;
-      cursor: pointer;
-      font-weight: 700;
-      width: 100%;
-      box-shadow: 0 0 24px rgba(246, 38, 163, 0.8);
-      transition: background 0.3s ease;
-      letter-spacing: 0.04em;
-    }
-    form button:hover {
-      background: linear-gradient(to right, #9129fc, #f626a3);
-      box-shadow: 0 0 30px rgba(246, 38, 163, 1);
-    }
-  </style>
 </head>
 <body>
 
@@ -169,9 +14,8 @@
    <nav>
     <a href="{{ url_for('main') }}">Home</a>
     <a href="{{ url_for('interface') }}">FormFillBot</a>
-    <a href=/profil>Profil</a>
+    <a href="/profil">Profil</a>
     <a href="{{ url_for('logout') }}">Logout</a>
-
   </nav>
 </header>
 
