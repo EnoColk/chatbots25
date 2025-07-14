@@ -101,13 +101,17 @@ def extract_form_fields_positions(pdf_path):
 def extract_form_fields(pdf_path):
     reader = PdfReader(pdf_path)
     fields = {}
+    labels = {}  # <--- Neu
     if reader.get_fields():
         for field in reader.get_fields().values():
             name = field.get('/T')
             value = field.get('/V', '')
+            tooltip = field.get('/TU', '')  # <--- Tooltip oder anderer Feldtext
             if name:
                 fields[name] = value or ''
-    return fields
+                labels[name] = tooltip if tooltip else name  # <--- Nehme Label = TU oder fallback
+    return fields, labels
+
 
 
 
@@ -118,11 +122,25 @@ def extract_form_fields(pdf_path):
 @login_required
 def interface():
     filename = session.get("filename")
-    return render_template('interface.html', filename=filename)
+    return render_template(
+    'interface.html',
+    filename=filename,
+    labels=session.get("field_labels", {}),
+    positions=session.get("field_positions", {}),
+    values=session.get("field_state", {}).get("_answered", {})
+)
+
 
 
 @app.route("/upload", methods=["POST"])
 def upload_pdf():
+    import re  # Falls nicht global vorhanden
+
+    def prettify_field_name(name):
+        name = re.sub(r"[_\-]+", " ", name)         # Unterstriche/Bindestriche → Leerzeichen
+        name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)  # camelCase trennen
+        return name.strip().capitalize()
+
     if "pdf_file" not in request.files:
         return "Keine Datei hochgeladen", 400
 
@@ -141,10 +159,6 @@ def upload_pdf():
     session["filename"] = filename
     session["field_state"] = {"_asked": [], "_answered": {}}
 
-    # Formularfelder extrahieren (alle Felder)
-    fields = extract_form_fields(filepath)
-    session["form_fields"] = fields
-
     # Reihenfolge extrahieren und speichern
     field_order = extract_form_fields_ordered_by_position(filepath)
     session["field_order"] = field_order
@@ -153,7 +167,20 @@ def upload_pdf():
     field_positions = extract_form_fields_positions(filepath)
     session["field_positions"] = field_positions
 
+    # Form-Felder extrahieren
+    fields, _ = extract_form_fields(filepath)  # ⛔️ keine Labels hier nötig
+    session["form_fields"] = fields
+
+    # Labels aus Namen generieren (clean + lesbar)
+    session["field_labels"] = {name: prettify_field_name(name) for name in field_order}
+
+    # Leere Antworten vorbereiten
+    session["field_state"]["_answered"] = {}
+
     return redirect(url_for("interface"))
+
+
+
 
 
 @app.route("/remove", methods=["POST"])
@@ -178,75 +205,108 @@ def chat():
     if not user_message:
         return jsonify({"reply": "Keine Nachricht empfangen."}), 400
 
-    # 🧠 Formularstatus aus der Session laden
     form_fields = session.get("form_fields", {})
     field_state = session.get("field_state", {"_asked": [], "_answered": {}})
-    field_order = session.get("field_order", list(form_fields.keys()))  # ✅ So ist es richtig!
+    field_order = session.get("field_order", list(form_fields.keys()))
+    field_labels = session.get("field_labels", {})
     unanswered_fields = [f for f in field_order if f not in field_state["_answered"]]
 
-    # 🟣 Fall 1: Begrüßung ohne PDF – Hinweis
-    if user_message.lower() == "init" and not is_valid_pdf_uploaded():
-        prompt = """
-Du bist der FormFillBot, ein intelligenter PDF-Assistent. Begrüße den Nutzer mit diesem Satz:
+    # Begrüßung ohne PDF
+    if user_message.lower() == "init" and not ("filename" in session and form_fields):
+        return jsonify({
+            "reply": (
+                "Hallo! Ich bin der FormFillBot und helfe dir beim Ausfüllen deines PDF-Formulars.\n"
+                "Bitte lade zuerst ein PDF-Formular hoch."
+            )
+        })
 
-„Hallo! Ich bin der FormFillBot und helfe dir beim Ausfüllen deines PDF-Formulars.“
-
-Füge dann hinzu:
-
-„Bitte lade zunächst ein PDF-Formular hoch, damit ich dir helfen kann.“
-
-Sprich freundlich und klar. Verwende exakt diese zwei Sätze.
-"""
-        return jsonify({"reply": get_gemini_response(prompt)})
-
-    # 🟣 Fall 2: Begrüßung + erste Feldfrage mit dynamischem Formularnamen
+    # Begrüßung mit PDF → erste Frage
     if user_message.lower() == "init":
         if not unanswered_fields:
             return jsonify({"reply": "Das Formular ist bereits vollständig ausgefüllt."})
-
         first_field = unanswered_fields[0]
-        raw_filename = session.get("filename", "")
-        formularname = raw_filename.rsplit("/", 1)[-1].replace(".pdf", "").strip()
-
-        prompt = f"""
-Du bist der FormFillBot, ein intelligenter Assistent, der PDF-Formulare ausfüllt.
-
-Begrüße den Nutzer mit:
-
-„Ich werde dir dabei helfen, dein {formularname} auszufüllen.“
-
-Stelle danach sofort die erste Frage zum Feld „{first_field}“. Frage freundlich in Du-Form.
-
-Formuliere beide Sätze gemeinsam in natürlicher Sprache. Antworte nur mit diesen zwei Sätzen.
-"""
-        reply = get_gemini_response(prompt)
-        field_state["_asked"].append(first_field)
+        label = field_labels.get(first_field, first_field)
+        filename = session.get("filename", "Formular").replace(".pdf", "")
+        field_state["_asked"] = [first_field]
         session["field_state"] = field_state
-        return jsonify({"reply": reply})
+        return jsonify({
+            "reply": f"Ich werde dir dabei helfen, dein {filename}-Formular auszufüllen. Wie lautet dein Wert für „{label}“?"
+        })
 
-    # ✍️ Nutzerantwort speichern
+    # Verarbeitung der Nutzereingabe
+    updated_fields = {}
     if field_state["_asked"]:
         last_field = field_state["_asked"][-1]
-        field_state["_answered"][last_field] = user_message
+        user_input = user_message.strip()
+        label = field_labels.get(last_field, last_field)
+
+        remaining = [f for f in field_order if f not in field_state["_answered"] and f != last_field]
+        next_field = remaining[0] if remaining else None
+        next_label = field_labels.get(next_field, next_field) if next_field else ""
+
+        # Validierung mit Gemini
+        validation_prompt = f"""
+Du bist ein intelligenter Formularassistent.
+
+Der Nutzer hat für das Feld „{label}“ folgenden Wert eingegeben:
+„{user_input}“
+
+Prüfe, ob die Eingabe gültig ist.
+
+Regeln:
+- Für E-Mail: Muss eine vollständige Adresse sein mit @ und Domainendung wie .de oder .com.
+- Für Telefonnummer: Gültig sind realistische Formate wie „0234 1234567“ oder mobil „+49 176 12345678“.
+- Für Namen/Firma/etc.: Sollte plausibel und sinnvoll klingen.
+
+Wenn die Eingabe **ungültig** ist, antworte mit einer freundlichen Rückfrage, z. B.:
+„Hoppla, deine Telefonnummer scheint unvollständig zu sein. Bitte gib sie im Format 0234 1234567 oder +49 176 12345678 ein.“
+
+Wenn die Eingabe **gültig** ist, stelle sofort die nächste Frage für das Feld „{next_label}“ – keine Bestätigung oder „OK“!
+
+Verwende die Du-Form. Antworte nur mit Rückfrage oder nächster Frage.
+"""
+
+        response = get_gemini_response(validation_prompt).strip()
+
+        # Prüfen, ob es sich um eine Rückfrage wegen ungültiger Eingabe handelt
+        if any(word in response.lower() for word in ["ungültig", "unvollständig", "falsch", "format", "vervollständig", "korrektur"]):
+            return jsonify({
+                "reply": response,
+                "updated_fields": {}
+            })
+
+        # Eingabe ist gültig → speichern und weitermachen
+        field_state["_answered"][last_field] = user_input
+        updated_fields[last_field] = user_input
         field_state["_asked"] = []
 
-    # ⏭️ Nächstes offenes Feld abfragen
-    unanswered_fields = [f for f in field_order if f not in field_state["_answered"]]
-    next_field = next((f for f in unanswered_fields), None)
+        if next_field:
+            field_state["_asked"] = [next_field]
+            session["field_state"] = field_state
+            return jsonify({
+                "reply": response,
+                "updated_fields": updated_fields
+            })
+        else:
+            session["field_state"] = field_state
+            return jsonify({
+                "reply": "Alle Felder wurden ausgefüllt. Du kannst jetzt auf 'Exportieren' klicken.",
+                "updated_fields": updated_fields
+            })
 
-    if next_field:
-        prompt = f"""
-Formuliere eine freundliche Frage an den Nutzer, um das Feld „{next_field}“ im PDF-Formular auszufüllen.
-Sprich in der Du-Form. Antworte nur mit der konkreten Frage.
-"""
-        reply = get_gemini_response(prompt)
-        field_state["_asked"].append(next_field)
-        session["field_state"] = field_state
-        return jsonify({"reply": reply})
+    # Kein offenes Feld mehr
+    return jsonify({
+        "reply": "Alle Felder wurden bereits ausgefüllt.",
+        "updated_fields": {}
+    })
 
-    # ✅ Alles beantwortet
-    session["field_state"] = field_state
-    return jsonify({"reply": "Alle Felder wurden ausgefüllt. Du kannst jetzt auf 'Exportieren' klicken."})
+
+
+
+
+
+
+
 
 
 
@@ -258,24 +318,32 @@ Sprich in der Du-Form. Antworte nur mit der konkreten Frage.
 def export_pdf():
     filename = session.get("filename")
     answers = session.get("field_state", {}).get("_answered", {})
+
     if not filename or not answers:
         return "Keine Daten zum Exportieren", 400
+
+    print("🔍 Starte PDF-Export...")
+    print("📤 Antworten zur Übergabe an PDF:")
+    for key, value in answers.items():
+        print(f" → {key}: {value}")
 
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     reader = PdfReader(filepath)
     writer = PdfWriter()
 
-    for i, page in enumerate(reader.pages):
+    for page in reader.pages:
         writer.add_page(page)
-        writer.update_page_form_field_values(writer.pages[i], answers)
 
     if "/AcroForm" in reader.trailer["/Root"]:
+        acroform = reader.trailer["/Root"]["/AcroForm"]
         writer._root_object.update({
-            NameObject("/AcroForm"): DictionaryObject({
-                NameObject("/Fields"): reader.trailer["/Root"]["/AcroForm"]["/Fields"],
-                NameObject("/NeedAppearances"): BooleanObject(True)
-            })
+            NameObject("/AcroForm"): acroform.get_object()
         })
+
+        # Jetzt Felder setzen
+        writer.update_page_form_field_values(writer.pages[0], answers)
+    else:
+        print("⚠️ Keine AcroForm im PDF – Export nicht möglich.")
 
     output = io.BytesIO()
     writer.write(output)
@@ -287,6 +355,8 @@ def export_pdf():
     with open(export_path, "wb") as f:
         f.write(output.read())
 
+    print("✅ Export abgeschlossen:", export_filename)
+
     return send_from_directory(
         directory=app.config["UPLOAD_FOLDER"],
         path=export_filename,
@@ -294,6 +364,11 @@ def export_pdf():
         download_name=export_filename,
         mimetype='application/pdf'
     )
+
+
+
+
+
 
 @app.route("/logout")
 def logout():

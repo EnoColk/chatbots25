@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+{% set labels = session.get("field_labels", {}) | tojson | safe %}
+{% set positions = session.get("field_positions", {}) | tojson | safe %}
+{% set values = session.get("field_state", {}).get("_answered", {}) | tojson | safe %}
 <html lang="de">
 <head>
   <meta charset="UTF-8">
@@ -105,9 +108,10 @@
     .export { background-color: #8c2eff; }
     .export:hover { background-color: #6b1edb; }
     .pdf-viewer-box {
-      height: 300px; background: #1a0033; border: 2px dashed #2468ff;
-      border-radius: 12px; margin-bottom: 10px; overflow: hidden; position: relative;
-    }
+    max-height: 100%; background: #1a0033; border: 2px dashed #2468ff; border-radius: 12px;
+    margin-bottom: 10px; overflow-y: auto; position: relative;
+}
+
     #pdf-container { position: relative; width: 100%; height: 100%; }
     .pdfOverlayInput {
       position: absolute; border: 1px solid #8a2be2; background: rgba(255,255,255,0.7);
@@ -122,12 +126,12 @@
 
 </head>
 <body
-  {% if filename %}
-    data-filename="{{ filename }}"
-    data-positions='{{ session.get("field_positions", {}) | tojson | safe }}'
-    data-values='{{ session.get("field_state", {}).get("_answered", {}) | tojson | safe }}'
-  {% endif %}
+  data-filename="{{ filename }}"
+  data-labels='{{ labels }}'
+  data-positions='{{ positions }}'
+  data-values='{{ values }}'
 >
+
 
 <header>
   <nav>
@@ -186,16 +190,16 @@
 
     <div class="pdf-viewer-box">
       {% if filename %}
-      <div id="pdf-container">
-        <canvas id="pdf-canvas"></canvas>
-        <!-- Overlay-Inputs werden hier per JS eingefügt -->
-      </div>
+        <div id="pdf-container">
+          <!-- Dynamisch erzeugte Seiten und Overlays -->
+        </div>
       {% else %}
-      <p style="text-align:center;color:#58c7ff;padding:10px">
-        Noch keine PDF hochgeladen.
-      </p>
+        <p style="text-align:center;color:#58c7ff;padding:10px">
+          Noch keine PDF hochgeladen.
+        </p>
       {% endif %}
     </div>
+    
   </div>
 </div>
 
@@ -243,6 +247,20 @@
         chatBox.appendChild(botMsg);
         chatBox.scrollTop = chatBox.scrollHeight;
 
+        // 🔁 Dynamische PDF-Feld-Aktualisierung (Live-Overlay)
+if (data.updated_fields) {
+  const inputs = document.querySelectorAll('.pdfOverlayInput');
+  Object.entries(data.updated_fields).forEach(([key, value]) => {
+    inputs.forEach(input => {
+      if (input.name === key) {
+        input.value = value;
+      }
+    });
+  });
+}
+
+
+
       } catch (error) {
         loadingMsg.remove();
         const errorMsg = document.createElement("div");
@@ -272,56 +290,82 @@
 </script>
 
 <script>
-  // PDF Overlay Inputs
   document.addEventListener("DOMContentLoaded", () => {
-  const body = document.body;
-  const filename = body.dataset.filename;
-  console.log("Filename:", filename);
-  if (!filename) {
-    console.log("Keine PDF zum Anzeigen");
-    return;
-  }
+    const body = document.body;
+    const filename = body.dataset.filename;
+    const fieldPositions = JSON.parse(body.dataset.positions || "{}");
+    const fieldValues = JSON.parse(body.dataset.values || "{}");
+    const labels = JSON.parse(body.dataset.labels || "{}");
+    const url = `/uploaded/${filename}`;
 
-  const fieldPositions = JSON.parse(body.dataset.positions || "{}");
-  const fieldValues = JSON.parse(body.dataset.values || "{}");
-  const url = `/uploaded/${filename}`;
-  console.log("PDF URL:", url);
+    if (!filename) {
+      console.log("Keine PDF zum Anzeigen");
+      return;
+    }
 
-  const canvas = document.getElementById('pdf-canvas');
-const ctx = canvas.getContext('2d');
-const container = document.getElementById('pdf-container');
-const desiredWidth = container.clientWidth;
+    const container = document.getElementById("pdf-container");
+    const desiredWidth = container.offsetWidth || 600;
 
-pdfjsLib.getDocument(url).promise.then(pdf => {
-  pdf.getPage(1).then(page => {
-    const unscaledViewport = page.getViewport({ scale: 1 });
-    const scale = desiredWidth / unscaledViewport.width;
-    const viewport = page.getViewport({ scale });
+    // Lade PDF
+    pdfjsLib.getDocument(url).promise.then(pdf => {
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        pdf.getPage(pageNum).then(page => {
+          const unscaledViewport = page.getViewport({ scale: 1 });
+          const scale = desiredWidth / unscaledViewport.width;
+          const viewport = page.getViewport({ scale });
 
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
+          // Erzeuge Wrapper + Canvas
+          const wrapper = document.createElement("div");
+          wrapper.className = "pdf-page-wrapper";
+          wrapper.style.position = "relative";
+          wrapper.style.width = `${viewport.width}px`;
+          wrapper.style.height = `${viewport.height}px`;
+          wrapper.style.margin = "0 auto 20px";
 
-    page.render({ canvasContext: ctx, viewport }).promise.then(() => {
-      console.log("Seite gerendert");
-      Object.entries(fieldPositions).forEach(([name, pos]) => {
-        if (pos.page !== 0) return;
-        const input = document.createElement('input');
-        input.className = 'pdfOverlayInput';
-        input.placeholder = name;
-        input.style.left = `${pos.x * scale}px`;
-        const top = canvas.height - (pos.y + pos.height) * scale;
-        input.style.top = `${top}px`;
-        input.style.width = `${pos.width * scale}px`;
-        input.style.height = `${pos.height * scale}px`;
-        input.value = fieldValues[name] || '';
-        container.appendChild(input);
-      });
-    }).catch(err => console.error("Render Fehler:", err));
-  }).catch(err => console.error("Seiten Fehler:", err));
-}).catch(err => console.error("PDF Laden Fehler:", err));
-});
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = `${viewport.width}px`;
+          canvas.style.height = `${viewport.height}px`;
+          const ctx = canvas.getContext("2d");
 
+          wrapper.appendChild(canvas);
+          container.appendChild(wrapper);
+
+          // Render PDF-Seite
+          page.render({ canvasContext: ctx, viewport }).promise.then(() => {
+            console.log(`Seite ${pageNum} gerendert`);
+
+            // Felder nur dieser Seite einfügen
+            Object.entries(fieldPositions).forEach(([name, pos]) => {
+              if (pos.page !== pageNum - 1) return;
+
+              const input = document.createElement("input");
+              input.className = "pdfOverlayInput";
+              input.name = name;
+              input.value = fieldValues[name] || "";
+              input.placeholder = labels[name] || name;
+
+              const topY = (unscaledViewport.height - pos.y - pos.height) * scale;
+
+              input.style.position = "absolute";
+              input.style.left = `${pos.x * scale}px`;
+              input.style.top = `${topY}px`;
+              input.style.width = `${pos.width * scale}px`;
+              input.style.height = `${pos.height * scale}px`;
+
+
+              wrapper.appendChild(input);
+            });
+          }).catch(err => console.error("Render Fehler:", err));
+        }).catch(err => console.error("Seiten Fehler:", err));
+      }
+    }).catch(err => console.error("PDF Laden Fehler:", err));
+  });
 </script>
+
+
+
 
 </body>
 </html>
