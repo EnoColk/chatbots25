@@ -396,7 +396,7 @@ def login():
                     session["user_id"] = user_data["id"]
                     session["user_email"] = email
                     success = True
-                    redirect_url = url_for("main")
+                    redirect_url = url_for("interface")
                     flash("Login erfolgreich!")
                 else:
                     flash("Falsches Passwort.")
