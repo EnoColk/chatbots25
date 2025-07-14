@@ -233,7 +233,6 @@ def chat():
             "reply": f"Ich werde dir dabei helfen, dein {filename}-Formular auszufüllen. Wie lautet dein Wert für „{label}“?"
         })
 
-    # Verarbeitung der Nutzereingabe
     updated_fields = {}
     if field_state["_asked"]:
         last_field = field_state["_asked"][-1]
@@ -261,21 +260,29 @@ Regeln:
 Wenn die Eingabe **ungültig** ist, antworte mit einer freundlichen Rückfrage, z. B.:
 „Hoppla, deine Telefonnummer scheint unvollständig zu sein. Bitte gib sie im Format 0234 1234567 oder +49 176 12345678 ein.“
 
-Wenn die Eingabe **gültig** ist, stelle sofort die nächste Frage für das Feld „{next_label}“ – keine Bestätigung oder „OK“!
+Wenn die Eingabe **gültig** ist, frage explizit:
+„Wie lautet dein Wert für „{next_label}“?“
 
 Verwende die Du-Form. Antworte nur mit Rückfrage oder nächster Frage.
 """
 
         response = get_gemini_response(validation_prompt).strip()
 
-        # Prüfen, ob es sich um eine Rückfrage wegen ungültiger Eingabe handelt
+        # Rückfrage? → NICHT speichern
         if any(word in response.lower() for word in ["ungültig", "unvollständig", "falsch", "format", "vervollständig", "korrektur"]):
             return jsonify({
                 "reply": response,
                 "updated_fields": {}
             })
 
-        # Eingabe ist gültig → speichern und weitermachen
+        # Gemini muss wirklich zur nächsten Frage überleiten
+        if next_field and next_label.lower() not in response.lower():
+            return jsonify({
+                "reply": f"Deine Antwort wurde verarbeitet. Bitte gib deinen Wert für „{next_label}“ an.",
+                "updated_fields": {}
+            })
+
+        # Eingabe gültig → speichern
         field_state["_answered"][last_field] = user_input
         updated_fields[last_field] = user_input
         field_state["_asked"] = []
@@ -294,11 +301,11 @@ Verwende die Du-Form. Antworte nur mit Rückfrage oder nächster Frage.
                 "updated_fields": updated_fields
             })
 
-    # Kein offenes Feld mehr
     return jsonify({
         "reply": "Alle Felder wurden bereits ausgefüllt.",
         "updated_fields": {}
     })
+
 
 
 
